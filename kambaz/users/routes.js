@@ -1,7 +1,9 @@
 import UsersDao from "./dao.js";
+import EnrollmentsDao from "../enrollments/dao.js";
 
-export default function UserRoutes(app) {
+export default function UserRoutes(app, db) {
   const dao = UsersDao();
+  const enrollmentsDao = EnrollmentsDao(db);
   const isFaculty = (user) => user && (user.role === "FACULTY" || user.role === "ADMIN");
 
   const createUser = async (req, res) => {
@@ -32,9 +34,9 @@ export default function UserRoutes(app) {
     const users = await dao.findAllUsers();
     res.json(users);
   };
-  const findUsersForCourse = (req, res) => {
+  const findUsersForCourse = async (req, res) => {
     const { courseId } = req.params;
-    const users = dao.findUsersForCourse(courseId);
+    const users = await enrollmentsDao.findUsersForCourse(courseId);
     res.json(users);
   };
   const findUserById = async (req, res) => {
@@ -78,7 +80,7 @@ export default function UserRoutes(app) {
   const profile = async (req, res) => {
     const currentUser = req.session["currentUser"];
     if (!currentUser) {
-      res.sendStatus(401);
+      res.json(null);
       return;
     }
     res.json(currentUser);

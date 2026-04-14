@@ -1,28 +1,41 @@
-import { v4 as uuidv4 } from "uuid";
+import model from "./model.js";
+import usersModel from "../users/model.js";
+import coursesModel from "../courses/model.js";
+
 export default function EnrollmentsDao(db) {
+  async function findCoursesForUser(userId) {
+    const enrollments = await model.find({ user: userId }).lean();
+    const courseIds = enrollments.map((enrollment) => enrollment.course);
+    return coursesModel.find({ _id: { $in: courseIds } });
+  }
+
+  async function findUsersForCourse(courseId) {
+    const enrollments = await model.find({ course: courseId }).lean();
+    const userIds = enrollments.map((enrollment) => enrollment.user);
+    return usersModel.find({ _id: { $in: userIds } });
+  }
+
   function enrollUserInCourse(userId, courseId) {
-    const { enrollments } = db;
-    const existingEnrollment = enrollments.find(
-      (enrollment) =>
-        enrollment.user === userId && enrollment.course === courseId,
-    );
-    if (existingEnrollment) {
-      return existingEnrollment;
-    }
-    const newEnrollment = { _id: uuidv4(), user: userId, course: courseId };
-    enrollments.push(newEnrollment);
-    return newEnrollment;
+    return model.create({
+      user: userId,
+      course: courseId,
+      _id: `${userId}-${courseId}`,
+    });
   }
 
-  function unenrollUserFromCourse(userId, courseId) {
-    const { enrollments } = db;
-    const initialLength = enrollments.length;
-    db.enrollments = enrollments.filter(
-      (enrollment) =>
-        !(enrollment.user === userId && enrollment.course === courseId),
-    );
-    return db.enrollments.length < initialLength;
+  function unenrollUserFromCourse(user, course) {
+    return model.deleteOne({ user, course });
   }
 
-  return { enrollUserInCourse, unenrollUserFromCourse };
+  function unenrollAllUsersFromCourse(courseId) {
+    return model.deleteMany({ course: courseId });
+  }
+
+  return {
+    findCoursesForUser,
+    findUsersForCourse,
+    enrollUserInCourse,
+    unenrollUserFromCourse,
+    unenrollAllUsersFromCourse,
+  };
 }
